@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useCustomization } from '../context/CustomizationContext';
+import { supabase } from '../supabaseClient';
+
 import {
   Search,
   Sliders,
