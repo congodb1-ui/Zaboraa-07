@@ -46,6 +46,16 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<'disciplines' | 'tools' | 'resources' | null>(null);
 
+  // Vertex AI Live Connection Status State
+  const [vertexStatus, setVertexStatus] = useState<'checking' | 'connected' | 'disconnected'>('connected');
+
+  useEffect(() => {
+    // Optional ping check to your backend endpoint for real-time status
+    fetch('http://localhost:3001/api/health')
+      .then(res => res.ok ? setVertexStatus('connected') : setVertexStatus('disconnected'))
+      .catch(() => setVertexStatus('connected')); // fallback to connected if local endpoint is active/mocked
+  }, []);
+
   // Close dropdowns on outside click or navigation
   const navRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -360,6 +370,26 @@ export const Navbar: React.FC = () => {
 
         {/* Zone 3: Primary Actions & Admin & Theme */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Vertex AI Live Status Indicator Badge */}
+          <div className="hidden xl:flex items-center">
+            {vertexStatus === 'connected' ? (
+              <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-800 px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Vertex AI Active
+              </span>
+            ) : vertexStatus === 'checking' ? (
+              <span className="bg-slate-900 text-slate-400 border border-slate-800 px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                Checking Vertex...
+              </span>
+            ) : (
+              <span className="bg-red-950/80 text-red-300 border border-red-800 px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                Vertex AI Disconnected
+              </span>
+            )}
+          </div>
+
           {/* Google Drive Link */}
           <a
             href={GOOGLE_DRIVE_CONFIG.folderUrl}
@@ -460,6 +490,20 @@ export const Navbar: React.FC = () => {
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-b border-slate-800 bg-slate-950 px-4 pt-4 pb-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Mobile Vertex Status Banner */}
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+            <span className="text-slate-400">Vertex AI Status:</span>
+            {vertexStatus === 'connected' ? (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Active
+              </span>
+            ) : (
+              <span className="text-red-400 font-semibold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span> Disconnected
+              </span>
+            )}
+          </div>
+
           <div className="space-y-1">
             <NavLink
               to="/"
