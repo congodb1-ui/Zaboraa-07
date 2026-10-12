@@ -1,13 +1,14 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function App() {
+  const ADMIN_EMAIL = "congodb1@gmail.com"; // Change this to your email
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [authError, setAuthError] = useState(null);
-
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const [activeTab, setActiveTab] = useState('studio');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -252,6 +253,16 @@ export default function App() {
           >
             Cloud Storage & History ({history.length})
           </button>
+        
+          {/* ONLY SHOWS FOR YOU */}
+          {isAdmin && (
+            <button 
+              onClick={() => setActiveTab('admin')} 
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition ${activeTab === 'admin' ? 'bg-red-600 text-white shadow' : 'text-red-400 hover:text-white'}`}
+            >
+              Admin Panel
+            </button>
+          )}
         </nav>
 
         <div className="flex items-center space-x-4 text-xs">
@@ -416,6 +427,28 @@ export default function App() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* 4. ADMIN PANEL VIEW BLOCK ADDED HERE */}
+        {activeTab === 'admin' && isAdmin && (
+          <div className="space-y-6">
+            <div className="bg-red-950/20 border border-red-900/50 rounded-xl p-6 shadow-xl">
+              <h2 className="text-lg font-bold text-white mb-2">Master Administrator Dashboard</h2>
+              <p className="text-xs text-slate-400 mb-6">Welcome, Administrator. You have global oversight of the Zaboraa SaaS portal.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                  <h3 className="text-sm font-semibold text-white mb-1">System Status</h3>
+                  <p className="text-xs text-slate-400">Vertex AI API: <span className="text-emerald-400">Connected</span></p>
+                  <p className="text-xs text-slate-400">Supabase DB: <span className="text-emerald-400">Active</span></p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                  <h3 className="text-sm font-semibold text-white mb-1">Tenant Control</h3>
+                  <p className="text-xs text-slate-400">Current Logged-in User: <span className="text-blue-400">{session.user.email}</span></p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
