@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 import React, { useState, useRef, useEffect } from 'react';
 import { useCustomization } from '../context/CustomizationContext';
 import { ArchitectureDesignItem } from '../types/siteData';
@@ -41,6 +42,10 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
   const [newCompRole, setNewCompRole] = useState('');
   const [newCompDetails, setNewCompDetails] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (existingDesign) {
@@ -79,6 +84,45 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+
+  const handleGenerateImage = async () => {
+    if (!prompt.trim()) return;
+
+    setLoading(true);
+    setError('');
+    setImageUrl('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session ? session.access_token : null;
+      const userId = session ? session.user.id : 'congo-architect-session';
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch('http://localhost:3001/api/generate-image', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt, userId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate architecture schematic');
+
+      const imageSrc = data.imageUrl || `data:image/jpeg;base64,${data.image}`;
+      setImageUrl(imageSrc);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during generation');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -150,7 +194,7 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
     { label: 'Cloud Mesh Infrastructure', url: '/assets/images/architecture_avs_mesh_1791450083586.jpg' }
   ];
 
-  return (
+return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-6 flex items-center justify-center animate-in fade-in duration-150">
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8">
         {/* Modal Header */}
@@ -212,7 +256,7 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
                 required
                 value={imageUrl}
                 onChange={e => setImageUrl(e.target.value)}
-                placeholder="Image file path or image URL"
+                placeholder="Image file path or generated URL"
                 className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
               />
               <input
@@ -229,6 +273,28 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
               >
                 <Upload className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Upload</span>
+              </button>
+              
+              {/* AI Generate Button */}
+              <button
+                type="button"
+                onClick={() => handleGenerateImage(title || 'Enterprise cloud architecture topology')}
+                disabled={loading || !title.trim()}
+                className="px-3.5 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 shrink-0 border border-cyan-400 transition-all shadow-md"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Synthesizing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>AI Generate</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -317,7 +383,7 @@ export const CreateDesignModal: React.FC<CreateDesignModalProps> = ({
                   key={idx}
                   className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80 text-xs text-slate-300"
                 >
-                  <span className="truncate pr-2">• {spec}</span>
+                  <span className="truncate pr-2">{spec}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSpec(idx)}

@@ -59,7 +59,7 @@ const MainLayout: React.FC = () => {
     theme,
     toggleTheme,
     isAdmin,
-    setIsAdmin,
+    signOutAdmin,
     setIsCustomizerOpen,
     setIsWatermarkModalOpen,
     setIsBriefingModalOpen,
@@ -137,12 +137,7 @@ const MainLayout: React.FC = () => {
               <span>Edit Site</span>
             </button>
             <button
-              onClick={() => {
-                setIsAdmin(false);
-                try {
-                  localStorage.removeItem('zaboraa_admin_session');
-                } catch {}
-              }}
+              onClick={() => { void signOutAdmin(); }}
               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-emerald-700/70 text-slate-300 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
               title="Switch to public client view"
             >

@@ -461,7 +461,7 @@ export const DesignGeneratorPage: React.FC = () => {
     return `Dark enterprise blueprint aesthetic 3D isometric architectural diagram of a production hybrid VMware cloud topology for ${customerName}. Deep slate and midnight navy canvas background (#020617) with glowing high-contrast neon cyan, teal, and electric violet network lines, glowing 3D server rack chassis, and hyper-detailed isometric hardware annotations. Left panel displays on-premises enterprise datacenter with ${totalVMCount} VMs, vCenter Server, and VMware HCX interconnect mesh. Center transit panel shows dual redundant 10 Gbps ${connectivity} with ${nvaFirewall} next-gen firewall inspection and ${landingZone}. Right panel shows ${calculatedCloudNodes}x ${nodeSku} bare-metal SDDC nodes in ${cloudPlatform} with vSAN cluster and ${decoupledStorageTB} TB decoupled ${externalStorageName} NFS datastores. Replicated via ${drEngine} with ${drRpoMinutes}-minute RPO. Isometric orthographic 3D projection, photorealistic enterprise blueprint technical drawing, illuminated fiber optic paths, 4K presentation grade clarity.`;
   };
 
-  // AI 3D Isometric Generation Trigger
+// AI 3D Isometric Generation Trigger
   const handleGenerateAIBlueprint = async () => {
     setIsGenerating3D(true);
     setShowPreFlightModal(false);
@@ -482,6 +482,7 @@ export const DesignGeneratorPage: React.FC = () => {
     }, 1800);
 
     try {
+      // FIX: Use the clean relative path handled by Vite middleware (locally) and Vercel (production)
       const resp = await fetch('/api/generate-blueprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -533,6 +534,7 @@ export const DesignGeneratorPage: React.FC = () => {
       clearTimeout(timer2);
     }
   };
+
 
   // Download AI 3D Image
   const handleDownloadAIBlueprint = () => {
