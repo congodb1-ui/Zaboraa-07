@@ -46,14 +46,18 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<'disciplines' | 'tools' | 'resources' | null>(null);
 
-  // Vertex AI Live Connection Status State
+// Vertex AI Live Connection Status State via Supabase / Auth Session
   const [vertexStatus, setVertexStatus] = useState<'checking' | 'connected' | 'disconnected'>('connected');
 
   useEffect(() => {
-    // Optional ping check to your backend endpoint for real-time status
-    fetch('http://localhost:3001/api/health')
-      .then(res => res.ok ? setVertexStatus('connected') : setVertexStatus('disconnected'))
-      .catch(() => setVertexStatus('connected')); // fallback to connected if local endpoint is active/mocked
+    // Check if Supabase client is configured and responding
+    if (supabase && supabase.auth) {
+      supabase.auth.getSession()
+        .then(() => setVertexStatus('connected'))
+        .catch(() => setVertexStatus('disconnected'));
+    } else {
+      setVertexStatus('disconnected');
+    }
   }, []);
 
   // Close dropdowns on outside click or navigation
