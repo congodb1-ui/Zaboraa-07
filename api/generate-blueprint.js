@@ -15,12 +15,11 @@ export default async function handler(req, res) {
       throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
     }
 
-    // Initialize standard client using your API key directly
     const ai = new GoogleGenAI({ apiKey });
 
-    // Use generateContent with image response modality
+    // Use the validated model ID matching your successful local environment
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-image',
       contents: targetPrompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
@@ -45,14 +44,14 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         imageBase64,
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-flash-image',
         prompt: targetPrompt
       });
     } else {
       throw new Error('No image data returned from model response.');
     }
   } catch (err) {
-    console.error('Generation error:', err.message);
+    console.error('Serverless generation error:', err.message);
     return res.status(500).json({
       success: false,
       error: err.message,
