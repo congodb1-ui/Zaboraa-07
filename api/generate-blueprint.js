@@ -11,22 +11,15 @@ export default async function handler(req, res) {
     const targetPrompt = prompt || '3D isometric enterprise cloud architecture blueprint';
     
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    const project = process.env.GOOGLE_CLOUD_PROJECT || 'prime-bridge-511404-a3';
-    const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
     }
 
-    // Initialize SDK with Vertex AI mode enabled, your API key, project, and location
-    const ai = new GoogleGenAI({
-      apiKey,
-      vertexai: true,
-      project,
-      location
-    });
+    // Initialize GoogleGenAI directly with your active API key
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Call Gemini model via Agent Platform / Vertex AI
+    // Call the model using generateContent matching your local billing telemetry
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: targetPrompt,
@@ -53,14 +46,14 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         imageBase64,
-        model: 'gemini-2.5-flash (Agent Platform)',
+        model: 'gemini-2.5-flash',
         prompt: targetPrompt
       });
     } else {
       throw new Error('No image data returned from model response.');
     }
   } catch (err) {
-    console.error('Agent Platform generation error:', err.message);
+    console.error('Serverless generation error:', err.message);
     return res.status(500).json({
       success: false,
       error: err.message,
