@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import React, { useState } from 'react';
+import { uploadAssetImage } from '../services/storageService';
 
 export const ImageGenerator: React.FC = () => {
   const [prompt, setPrompt] = useState('');
@@ -7,6 +7,7 @@ export const ImageGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [savedStatus, setSavedStatus] = useState(false);
+  const [storageNotice, setStorageNotice] = useState('');
 
   const presets = [
     {
@@ -35,34 +36,46 @@ export const ImageGenerator: React.FC = () => {
     setImageUrl('');
     setSavedStatus(false);
 
+    setStorageNotice('');
+
     try {
-      // Get current active Supabase session token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session ? session.access_token : null;
-      const userId = session ? session.user.id : 'congo-architect-session';
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const res = await fetch('http://localhost:3001/api/generate-image', {
+      // Vercel serves this API route from /api/generate-blueprint.
+      const res = await fetch('/api/generate-blueprint', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ prompt: selectedPrompt, userId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: selectedPrompt }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate architecture schematic');
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to generate architecture schematic');
+      }
+      if (!data.imageBase64) {
+        throw new Error('The generation API did not return image data.');
+      }
 
-      const imageSrc = data.imageUrl || `data:image/jpeg;base64,${data.image}`;
-      setImageUrl(imageSrc);
+      // Convert the API's Base64 image into a File so the existing storage
+      // service can upload it without introducing another upload pipeline.
+      const mimeType = data.mimeType || 'image/png';
+      const binary = atob(data.imageBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const file = new File([bytes], `architecture-${Date.now()}.png`, {
+        type: mimeType,
+      });
 
-      if (data.imageUrl) {
+      const upload = await uploadAssetImage(file, 'blueprints');
+      setImageUrl(upload.url);
+
+      if (upload.source === 'supabase') {
         setSavedStatus(true);
+        setStorageNotice('Saved to Supabase Storage.');
+      } else if (upload.source === 'firebase') {
+        setStorageNotice('Generated successfully, but saved to Firebase Storage—not Supabase. Check the Supabase bucket and upload policies.');
+      } else {
+        setStorageNotice('Generated successfully, but cloud storage was unavailable; this image is only available as a browser data URL.');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during generation');
@@ -75,7 +88,7 @@ export const ImageGenerator: React.FC = () => {
     if (!imageUrl) return;
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `zaboraa-architecture-${Date.now()}.jpg`;
+    link.download = `zaboraa-architecture-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -167,6 +180,12 @@ export const ImageGenerator: React.FC = () => {
           {error && (
             <div className="p-3 bg-red-950/50 border border-red-800 rounded-lg text-red-200 text-xs">
               {error}
+            </div>
+          )}
+
+          {storageNotice && (
+            <div className={`p-3 rounded-lg text-xs border ${savedStatus ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-amber-950/40 border-amber-800 text-amber-200'}`}>
+              {storageNotice}
             </div>
           )}
 
