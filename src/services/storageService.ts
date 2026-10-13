@@ -39,11 +39,11 @@ export async function uploadAssetImage(
   if (supabase && (import.meta as any).env?.VITE_SUPABASE_URL) {
     try {
       const { data, error } = await supabase.storage
-        .from('platform-assets')
+        .from('generated-images')
         .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
       if (!error && data) {
-        const { data: pubData } = supabase.storage.from('platform-assets').getPublicUrl(filePath);
+        const { data: pubData } = supabase.storage.from('generated-images').getPublicUrl(filePath);
         if (pubData?.publicUrl) {
           return {
             url: pubData.publicUrl,
