@@ -10,48 +10,49 @@ export default async function handler(req, res) {
     const { prompt } = req.body || {};
     const targetPrompt = prompt || '3D isometric enterprise cloud architecture blueprint';
     
-    // Read the API key and project settings from Vercel environment variables
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    const project = process.env.GOOGLE_CLOUD_PROJECT || 'prime-bridge-511404-a3';
-    const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
-
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
     }
 
-    // Initialize the SDK with Vertex AI mode AND your API key for serverless auth
-    const ai = new GoogleGenAI({
-      apiKey,
-      vertexai: true,
-      project,
-      location
-    });
+    // Initialize standard client using your API key directly
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Execute Imagen 3 request on Vertex AI
-    const imgResp = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-002',
-      prompt: targetPrompt,
+    // Use generateContent with image response modality
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: targetPrompt,
       config: {
-        numberOfImages: 1,
-        aspectRatio: '16:9',
-        outputMimeType: 'image/jpeg'
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: {
+          aspectRatio: '16:9'
+        }
       }
     });
 
-    const imageBase64 = imgResp.generatedImages?.[0]?.image?.imageBytes;
+    let imageBase64 = null;
+    for (const candidate of response.candidates || []) {
+      for (const part of candidate.content?.parts || []) {
+        if (part.inlineData && part.inlineData.data) {
+          imageBase64 = part.inlineData.data;
+          break;
+        }
+      }
+      if (imageBase64) break;
+    }
 
     if (imageBase64) {
       return res.status(200).json({
         success: true,
         imageBase64,
-        model: 'imagen-3.0-generate-002 (Vertex AI Express)',
+        model: 'gemini-2.5-flash',
         prompt: targetPrompt
       });
     } else {
-      throw new Error('No image bytes returned from Vertex AI Imagen 3 model.');
+      throw new Error('No image data returned from model response.');
     }
   } catch (err) {
-    console.error('Vertex AI serverless generation error:', err.message);
+    console.error('Generation error:', err.message);
     return res.status(500).json({
       success: false,
       error: err.message,
