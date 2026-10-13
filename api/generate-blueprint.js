@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from '@google/genai';
 
 const MODEL = 'gemini-3.1-flash-image';
@@ -17,6 +18,7 @@ export default async function handler(req, res) {
 
   if (!apiKey) {
     console.error('GEMINI_API_KEY is not configured.');
+
     return res.status(500).json({
       success: false,
       error: 'Image generation is not configured.',
@@ -41,36 +43,64 @@ export default async function handler(req, res) {
       prompt?.trim() ||
       'Create a detailed 3D isometric enterprise cloud architecture blueprint. Use a professional enterprise architecture diagram style, clearly organized components, precise network connections, readable labels, and a 16:9 landscape composition.';
 
-    const ai = new GoogleGenAI({ apiKey });
+    // Authenticate with your Google Cloud Agent Platform API key.
+    const ai = new GoogleGenAI({
+      vertexai: true,
+      apiKey,
+    });
 
-    const interaction = await ai.interactions.create({
+    // Use GenerateContent: this model does not support Interactions API.
+    const response = await ai.models.generateContent({
       model: MODEL,
-      input: targetPrompt,
-      response_format: {
-        type: 'image',
-        mime_type: 'image/png',
-        aspect_ratio: '16:9',
-        image_size: '2K',
+      contents: targetPrompt,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: {
+          aspectRatio: '16:9',
+          imageSize: '2K',
+        },
       },
     });
 
-    const generatedImage = interaction.output_image;
+    // Image data is returned in the response's content parts.
+    const parts =
+      response.candidates?.flatMap(
+        (candidate) => candidate.content?.parts || []
+      ) || [];
+
+    const generatedImage = parts.find(
+      (part) => part.inlineData?.data
+    )?.inlineData;
 
     if (!generatedImage?.data) {
-      throw new Error('The model returned no image data.');
+      console.error('Image generation returned no image data.', {
+        model: MODEL,
+        finishReasons: response.candidates?.map(
+          (candidate) => candidate.finishReason
+        ),
+        responseText: response.text?.slice(0, 500),
+      });
+
+      return res.status(502).json({
+        success: false,
+        error: 'The model did not return an image. Please try again.',
+        fallbackUrl: FALLBACK_URL,
+      });
     }
 
     return res.status(200).json({
       success: true,
       imageBase64: generatedImage.data,
-      mimeType: generatedImage.mime_type || 'image/png',
+      mimeType: generatedImage.mimeType || 'image/png',
       model: MODEL,
       prompt: targetPrompt,
     });
   } catch (err) {
     console.error('Blueprint generation failed:', {
       message: err?.message,
-      status: err?.status,
+      status: err?.status || err?.statusCode,
+      code: err?.code,
+      details: err?.details,
     });
 
     return res.status(502).json({
