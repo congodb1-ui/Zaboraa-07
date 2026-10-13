@@ -1,6 +1,6 @@
-
 import { GoogleGenAI } from '@google/genai';
 
+const MODEL = 'gemini-3.1-flash-image';
 const FALLBACK_URL =
   '/assets/images/blueprint_3d_isometric_1791610246387.jpg';
 
@@ -39,13 +39,12 @@ export default async function handler(req, res) {
 
     const targetPrompt =
       prompt?.trim() ||
-      'Create a detailed 3D isometric enterprise cloud architecture blueprint.';
+      'Create a detailed 3D isometric enterprise cloud architecture blueprint. Use a professional enterprise architecture diagram style, clearly organized components, precise network connections, readable labels, and a 16:9 landscape composition.';
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Use the current image-generation Interactions API.
     const interaction = await ai.interactions.create({
-      model: 'gemini-nano-banana-2.1',
+      model: MODEL,
       input: targetPrompt,
       response_format: {
         type: 'image',
@@ -65,11 +64,10 @@ export default async function handler(req, res) {
       success: true,
       imageBase64: generatedImage.data,
       mimeType: generatedImage.mime_type || 'image/png',
-      model: 'gemini-nano-banana-2.1',
+      model: MODEL,
       prompt: targetPrompt,
     });
   } catch (err) {
-    // Keep detailed provider errors in server logs, not client responses.
     console.error('Blueprint generation failed:', {
       message: err?.message,
       status: err?.status,
