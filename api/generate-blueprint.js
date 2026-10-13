@@ -17,12 +17,12 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Use generateContent (the new standard for image models)
+    // Use Gemini's multimodal image generation model compatible with standard API keys
     const response = await ai.models.generateContent({
-      model: 'imagen-3.0-generate-002',
+      model: 'gemini-3-pro-image-preview',
       contents: targetPrompt,
       config: {
-        responseModalities: ['IMAGE'],
+        responseModalities: ['TEXT', 'IMAGE'],
         imageConfig: {
           aspectRatio: '16:9'
         }
@@ -30,22 +30,27 @@ export default async function handler(req, res) {
     });
 
     let imageBase64 = null;
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData && part.inlineData.data) {
-        imageBase64 = part.inlineData.data;
-        break;
+    const candidates = response.candidates || [];
+    for (const candidate of candidates) {
+      const parts = candidate.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData && part.inlineData.data) {
+          imageBase64 = part.inlineData.data;
+          break;
+        }
       }
+      if (imageBase64) break;
     }
 
     if (imageBase64) {
       return res.status(200).json({
         success: true,
         imageBase64,
-        model: 'imagen-3.0-generate-002',
+        model: 'gemini-3-pro-image-preview',
         prompt: targetPrompt
       });
     } else {
-      throw new Error('No image returned from Gemini model response.');
+      throw new Error('No image data returned from model response.');
     }
   } catch (err) {
     console.error('Serverless generation error:', err.message);
