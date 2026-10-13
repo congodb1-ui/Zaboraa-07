@@ -10,11 +10,18 @@ export default async function handler(req, res) {
     const { prompt } = req.body || {};
     const targetPrompt = prompt || '3D isometric enterprise cloud architecture blueprint';
     
+    // Read the API key and project settings from Vercel environment variables
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
     const project = process.env.GOOGLE_CLOUD_PROJECT || 'prime-bridge-511404-a3';
     const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
-    // Initialize GoogleGenAI SDK explicitly in Vertex AI mode
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
+    }
+
+    // Initialize the SDK with Vertex AI mode AND your API key for serverless auth
     const ai = new GoogleGenAI({
+      apiKey,
       vertexai: true,
       project,
       location
@@ -37,7 +44,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         imageBase64,
-        model: 'imagen-3.0-generate-002 (Vertex AI)',
+        model: 'imagen-3.0-generate-002 (Vertex AI Express)',
         prompt: targetPrompt
       });
     } else {
