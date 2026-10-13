@@ -1,4 +1,4 @@
-﻿import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   try {
     const { prompt } = req.body || {};
     const targetPrompt = prompt || '3D isometric enterprise cloud architecture blueprint';
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
@@ -17,17 +17,26 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const imgResp = await ai.models.generateImages({
+    // Use generateContent (the new standard for image models)
+    const response = await ai.models.generateContent({
       model: 'imagen-3.0-generate-002',
-      prompt: targetPrompt,
+      contents: targetPrompt,
       config: {
-        numberOfImages: 1,
-        aspectRatio: '16:9',
-        outputMimeType: 'image/jpeg'
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+          aspectRatio: '16:9'
+        }
       }
     });
 
-    const imageBase64 = imgResp.generatedImages?.[0]?.image?.imageBytes;
+    let imageBase64 = null;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData && part.inlineData.data) {
+        imageBase64 = part.inlineData.data;
+        break;
+      }
+    }
+
     if (imageBase64) {
       return res.status(200).json({
         success: true,
@@ -36,7 +45,7 @@ export default async function handler(req, res) {
         prompt: targetPrompt
       });
     } else {
-      throw new Error('No image bytes returned from Imagen 3 model.');
+      throw new Error('No image returned from Gemini model response.');
     }
   } catch (err) {
     console.error('Serverless generation error:', err.message);
