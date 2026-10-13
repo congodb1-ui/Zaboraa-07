@@ -1,63 +1,84 @@
+
 import { GoogleGenAI } from '@google/genai';
+
+const FALLBACK_URL =
+  '/assets/images/blueprint_3d_isometric_1791610246387.jpg';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed',
+    });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.error('GEMINI_API_KEY is not configured.');
+    return res.status(500).json({
+      success: false,
+      error: 'Image generation is not configured.',
+      fallbackUrl: FALLBACK_URL,
+    });
   }
 
   try {
-    const { prompt } = req.body || {};
-    const targetPrompt = prompt || '3D isometric enterprise cloud architecture blueprint';
-    
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const prompt = req.body?.prompt;
 
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not configured in Vercel environment variables.');
+    if (
+      prompt !== undefined &&
+      (typeof prompt !== 'string' || prompt.length > 10000)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt must be a string of at most 10000 characters.',
+      });
     }
 
-    // Initialize GoogleGenAI directly with your active API key
+    const targetPrompt =
+      prompt?.trim() ||
+      'Create a detailed 3D isometric enterprise cloud architecture blueprint.';
+
     const ai = new GoogleGenAI({ apiKey });
 
-    // Call the model using generateContent matching your local billing telemetry
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: targetPrompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-        imageConfig: {
-          aspectRatio: '16:9'
-        }
-      }
+    // Use the current image-generation Interactions API.
+    const interaction = await ai.interactions.create({
+      model: 'gemini-nano-banana-2.1',
+      input: targetPrompt,
+      response_format: {
+        type: 'image',
+        mime_type: 'image/png',
+        aspect_ratio: '16:9',
+        image_size: '2K',
+      },
     });
 
-    let imageBase64 = null;
-    for (const candidate of response.candidates || []) {
-      for (const part of candidate.content?.parts || []) {
-        if (part.inlineData && part.inlineData.data) {
-          imageBase64 = part.inlineData.data;
-          break;
-        }
-      }
-      if (imageBase64) break;
+    const generatedImage = interaction.output_image;
+
+    if (!generatedImage?.data) {
+      throw new Error('The model returned no image data.');
     }
 
-    if (imageBase64) {
-      return res.status(200).json({
-        success: true,
-        imageBase64,
-        model: 'gemini-2.5-flash',
-        prompt: targetPrompt
-      });
-    } else {
-      throw new Error('No image data returned from model response.');
-    }
+    return res.status(200).json({
+      success: true,
+      imageBase64: generatedImage.data,
+      mimeType: generatedImage.mime_type || 'image/png',
+      model: 'gemini-nano-banana-2.1',
+      prompt: targetPrompt,
+    });
   } catch (err) {
-    console.error('Serverless generation error:', err.message);
-    return res.status(500).json({
+    // Keep detailed provider errors in server logs, not client responses.
+    console.error('Blueprint generation failed:', {
+      message: err?.message,
+      status: err?.status,
+    });
+
+    return res.status(502).json({
       success: false,
-      error: err.message,
-      fallbackUrl: '/assets/images/blueprint_3d_isometric_1791610246387.jpg'
+      error: 'Blueprint generation failed. Please try again.',
+      fallbackUrl: FALLBACK_URL,
     });
   }
 }
